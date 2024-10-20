@@ -16,22 +16,22 @@ main(int argc,char* argv[])
     if (fork() == 0)
     {
         // child
-        char buf[4];
-        read(p[0],buf,4);
-        printf("%d: received %s\n",getpid(),buf);
-        write(p[1],"pong",4);
+        char buf[1];
+        read(p[0],buf,1);
+        printf("%d: received %sing\n",getpid(),buf);
+        write(p[1],"p",1);
         exit(0);
 
     }
     else if (getpid() > 0)
     {
         // parent
-        write(p[1],"ping",4);
+        write(p[1],"p",1);
         wait(0);
     
-        char buf[4];
-        read(p[0],buf,4);
-        printf("%d: received %s\n",getpid(),buf);
+        char buf[1];
+        read(p[0],buf,1);
+        printf("%d: received %song\n",getpid(),buf);
         exit(0);
     }
 }
