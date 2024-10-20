@@ -1,5 +1,4 @@
 //
-//  main.cpp
 //  xargs_demo
 //
 //  Created by NGUYỄN THỊ ANH THI on 15/10/2024.
