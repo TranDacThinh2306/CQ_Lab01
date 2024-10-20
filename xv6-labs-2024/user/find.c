@@ -1,78 +1,79 @@
 #include "kernel/types.h"
-#include "kernel/stat.h"
 #include "user/user.h"
 #include "kernel/fs.h"
-char*
-fmtname(char *path)
-{
-  static char buf[DIRSIZ+1];
-  char *p;
+#include "kernel/stat.h"
 
-  // Find first character after last slash.
-  for(p=path+strlen(path); p >= path && *p != '/'; p--);
-  p++;
+// Helper function to combine 2 string
+char* strcat(char* dest, const char* src) {
+    char *os = dest;
 
-  // Return blank-padded name.
-  if(strlen(p) >= DIRSIZ)
-    return p;
-  memmove(buf, p, strlen(p));
-  memset(buf+strlen(p), 0, DIRSIZ-strlen(p));
-  return buf;
+    while (*dest != '\0') {
+        dest++; 
+    }
+
+    while ((*dest++ = *src++) != 0) {
+    }
+
+    return os;
 }
 
-void find(char *path, char *name)
+// Find files in a directory tree with a specific name
+void find(char *path, char *filename)
 {
-  char buf[512], *p;
-  int fd;
-  struct dirent de;
-  struct stat st;
+    char buf[512];
+    int fd;
+    struct dirent de;
+    struct stat st;
 
-  if((fd = open(path, 0)) < 0){
-    fprintf(2, "find: cannot open %s\n", path);
-    return;
-  }
+    if ((fd = open(path, 0)) < 0) {
+        fprintf(2, "find: cannot open %s\n", path);
+        exit(1);
+    }
 
-  if(fstat(fd, &st) < 0){
-    fprintf(2, "find: cannot stat %s\n", path);
+    if (fstat(fd, &st) < 0) {
+        fprintf(2, "find: cannot stat %s\n", path);
+        close(fd);
+        exit(1);
+    }
+
+    if (st.type == T_DIR) {
+        while (read(fd, &de, sizeof(de)) == sizeof(de)) {
+            if (de.inum == 0) {
+                continue;
+            }
+            if (strcmp(de.name, ".") == 0 || strcmp(de.name, "..") == 0) {
+                continue;
+            }
+
+            // Create path by concatenating strings
+            strcpy(buf, path);               
+            if (path[strlen(path) - 1] != '/') {  // add '/' to path
+                strcat(buf, "/");            
+            }
+            strcat(buf, de.name);            
+
+            if (stat(buf, &st) < 0) {
+                fprintf(2, "find: cannot stat %s\n", path);
+                continue;
+            }
+
+            if (st.type == T_DIR) {
+                find(buf, filename);  
+            } else if (strcmp(de.name, filename) == 0) {
+                printf("%s\n", buf);  // Print path if file name matches
+            }
+        }
+    }
+
     close(fd);
-    return;
-  }
-
-  switch(st.type){
-  case T_FILE:
-    if(strcmp(fmtname(path), name) == 0)
-      printf("%s\n", path);
-    break;
-
-  case T_DIR:
-    if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
-      printf("find: path too long\n");
-      break;
-    }
-    strcpy(buf, path);
-    p = buf+strlen(buf);
-    *p++ = '/';
-    while(read(fd, &de, sizeof(de)) == sizeof(de)){
-      if(de.inum == 0)
-        continue;
-      memmove(p, de.name, DIRSIZ);
-      p[DIRSIZ] = 0;
-      if(strcmp(de.name, ".") == 0 || strcmp(de.name, "..") == 0)
-        continue;
-      find(buf, name);
-    }
-    break;
-  }
-  close(fd);
 }
 
-int
-main(int argc, char *argv[])
-{
-  if(argc < 3){
-    printf("Usage: find <path> <filename>\n");
-    exit(1);
-  }
-  find(argv[1], argv[2]);
-  exit(0);
+int main(int argc, char *argv[]) {
+    if (argc != 3) {
+        fprintf(2, "Usage: find <path> <filename>\n");
+        exit(1);
+    }
+
+    find(argv[1], argv[2]);
+    exit(0);
 }
